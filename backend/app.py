@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import requests
 from dotenv import load_dotenv
-from models import db, User, Quote, Image as ImageModel, Post
+from models import db, User, Quote, Image as ImageModel, Post, Affiliate
 from pinterest_client import PinterestOAuthClient
 from image_processor import ImageComposer
 from copyright_checker import CopyrightChecker
@@ -108,6 +108,67 @@ def get_user():
         'created_at': user.created_at.isoformat()
     })
 
+# ==================== AFFILIATE ENDPOINTS ====================
+
+@app.route('/affiliates', methods=['GET'])
+def get_affiliates():
+    """List user's affiliate links."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    affiliates = Affiliate.query.filter_by(user_id=user_id, is_active=True).all()
+    
+    return jsonify([{
+        'id': a.id,
+        'name': a.name,
+        'url': a.url,
+        'category': a.category,
+        'created_at': a.created_at.isoformat()
+    } for a in affiliates])
+
+@app.route('/affiliates', methods=['POST'])
+def add_affiliate():
+    """Add a new affiliate link."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.json or {}
+    name = data.get('name')
+    url = data.get('url')
+    category = data.get('category')
+    
+    if not name or not url:
+        return jsonify({'error': 'name and url required'}), 400
+    
+    affiliate = Affiliate(user_id=user_id, name=name, url=url, category=category)
+    db.session.add(affiliate)
+    db.session.commit()
+    
+    return jsonify({
+        'id': affiliate.id,
+        'name': affiliate.name,
+        'url': affiliate.url,
+        'category': affiliate.category
+    }), 201
+
+@app.route('/affiliates/<int:affiliate_id>', methods=['DELETE'])
+def delete_affiliate(affiliate_id):
+    """Deactivate an affiliate link."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    affiliate = Affiliate.query.filter_by(id=affiliate_id, user_id=user_id).first()
+    if not affiliate:
+        return jsonify({'error': 'Affiliate not found'}), 404
+    
+    affiliate.is_active = False
+    db.session.commit()
+    
+    return jsonify({'status': 'deactivated'})
+
 # ==================== IMAGE COMPOSITION ENDPOINTS ====================
 
 @app.route('/compose', methods=['POST'])
@@ -162,10 +223,17 @@ def create_post():
     quote_text = data.get('quote')
     author = data.get('author')
     image_url = data.get('image_url')
+    affiliate_id = data.get('affiliate_id')
     is_user_image = data.get('is_user_image', False)
     
     if not quote_text or not image_url:
         return jsonify({'error': 'quote and image_url required'}), 400
+    
+    # Validate affiliate exists if provided
+    if affiliate_id:
+        affiliate = Affiliate.query.filter_by(id=affiliate_id, user_id=user_id).first()
+        if not affiliate:
+            return jsonify({'error': 'Affiliate not found'}), 404
     
     # Validate copyright
     validation = CopyrightChecker.validate_post(
@@ -196,7 +264,7 @@ def create_post():
     db.session.flush()  # Get IDs without committing
     
     # Create post (draft)
-    post = Post(user_id=user_id, quote_id=quote.id, image_id=image.id, status='draft')
+    post = Post(user_id=user_id, quote_id=quote.id, image_id=image.id, status='draft', affiliate_id=affiliate_id)
     db.session.add(post)
     db.session.commit()
     
@@ -252,11 +320,15 @@ def post_to_pinterest(post_id):
         composer = ImageComposer()
         composed_img = composer.compose(image.source_url or image.local_path, quote.text, quote.author)
         
-        # Upload image to Pinterest (or upload to temporary storage and get URL)
-        # For now, assume image_url can be used directly
+        # Build description with affiliate link
         pin_description = quote.text
         if quote.author:
             pin_description += f"\n\n— {quote.author}"
+        
+        if post.affiliate_id:
+            affiliate = Affiliate.query.get(post.affiliate_id)
+            if affiliate:
+                pin_description += f"\n\n🔗 Learn more: {affiliate.url}"
         
         # Call Pinterest API
         pin_response = pinterest_client.create_pin(

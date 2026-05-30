@@ -5,8 +5,10 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import requests
 from dotenv import load_dotenv
-from models import db, User
+from models import db, User, Quote, Image as ImageModel, Post
 from pinterest_client import PinterestOAuthClient
+from image_processor import ImageComposer
+from copyright_checker import CopyrightChecker
 
 load_dotenv()
 
@@ -114,25 +116,22 @@ def compose():
     data = request.json or {}
     quote = data.get('quote', 'Life is what happens when you\'re busy making other plans.')
     author = data.get('author', '')
-    bg_color = data.get('bg_color', '#ffffff')
-
-    img = Image.new('RGB', (1000, 1000), bg_color)
-    draw = ImageDraw.Draw(img)
-
+    image_url = data.get('image_url', None)
+    
     try:
-        font = ImageFont.truetype('arial.ttf', 48)
-    except Exception:
-        font = ImageFont.load_default()
-
-    text = f"\"{quote}\"\n\n{author}" if author else f"\"{quote}\""
-    bbox = draw.multiline_textbbox((0, 0), text, font=font)
-    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.multiline_text(((1000-w)/2, (1000-h)/2), text, fill='black', font=font, align='center')
-
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    return send_file(buf, mimetype='image/png')
+        composer = ImageComposer()
+        
+        if image_url:
+            img = composer.compose(image_url, quote, author)
+        else:
+            # Fallback: solid color background
+            img = composer.compose(Image.new('RGB', (1000, 1000), (50, 50, 50)), quote, author)
+        
+        buf = composer.save_to_bytes(img)
+        return send_file(buf, mimetype='image/png')
+    
+    except Exception as e:
+        return jsonify({'error': f'Image composition failed: {str(e)}'}), 400
 
 # ==================== POST ENDPOINTS ====================
 
@@ -143,7 +142,6 @@ def get_posts():
     if not user_id:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    from models import Post
     posts = Post.query.filter_by(user_id=user_id).all()
     
     return jsonify([{
@@ -155,7 +153,7 @@ def get_posts():
 
 @app.route('/posts', methods=['POST'])
 def create_post():
-    """Create a new post (draft)."""
+    """Create a new post (draft) with copyright validation."""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Not authenticated'}), 401
@@ -164,18 +162,35 @@ def create_post():
     quote_text = data.get('quote')
     author = data.get('author')
     image_url = data.get('image_url')
+    is_user_image = data.get('is_user_image', False)
     
     if not quote_text or not image_url:
         return jsonify({'error': 'quote and image_url required'}), 400
     
-    from models import Quote, Image, Post
+    # Validate copyright
+    validation = CopyrightChecker.validate_post(
+        quote_text, author, image_url, image_url, is_user_image
+    )
     
     # Create quote record
-    quote = Quote(user_id=user_id, text=quote_text, author=author, source='user_input', license='unknown')
+    quote = Quote(
+        user_id=user_id,
+        text=quote_text,
+        author=author,
+        source=image_url if not is_user_image else 'user_input',
+        license=validation['quote_check']['license'],
+        review_status=validation['quote_check']['status']
+    )
     db.session.add(quote)
     
     # Create image record
-    image = Image(user_id=user_id, source_url=image_url, license='unknown')
+    image = ImageModel(
+        user_id=user_id,
+        source_url=image_url if not is_user_image else None,
+        local_path=image_url if is_user_image else None,
+        license=validation['image_check']['license'],
+        review_status=validation['image_check']['status']
+    )
     db.session.add(image)
     
     db.session.flush()  # Get IDs without committing
@@ -188,8 +203,147 @@ def create_post():
     return jsonify({
         'id': post.id,
         'status': post.status,
-        'created_at': post.created_at.isoformat()
+        'created_at': post.created_at.isoformat(),
+        'validation': {
+            'can_post': validation['can_post'],
+            'overall_status': validation['overall_status'],
+            'messages': validation['messages']
+        }
     }), 201
+
+@app.route('/posts/<int:post_id>/post', methods=['POST'])
+def post_to_pinterest(post_id):
+    """Post to Pinterest immediately."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    post = Post.query.filter_by(id=post_id, user_id=user_id).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    if post.status != 'draft':
+        return jsonify({'error': f'Can only post from draft status, current: {post.status}'}), 400
+    
+    data = request.json or {}
+    board_id = data.get('board_id')
+    
+    if not board_id:
+        return jsonify({'error': 'board_id required'}), 400
+    
+    try:
+        # Get user and refresh token if needed
+        user = User.query.get(user_id)
+        access_token = user.get_access_token()
+        
+        # Get quote and image
+        quote = Quote.query.get(post.quote_id)
+        image = ImageModel.query.get(post.image_id)
+        
+        # Check if content is approved
+        if quote.review_status != 'approved' or image.review_status != 'approved':
+            return jsonify({
+                'error': 'Content requires manual review before posting',
+                'quote_status': quote.review_status,
+                'image_status': image.review_status
+            }), 403
+        
+        # Compose image
+        composer = ImageComposer()
+        composed_img = composer.compose(image.source_url or image.local_path, quote.text, quote.author)
+        
+        # Upload image to Pinterest (or upload to temporary storage and get URL)
+        # For now, assume image_url can be used directly
+        pin_description = quote.text
+        if quote.author:
+            pin_description += f"\n\n— {quote.author}"
+        
+        # Call Pinterest API
+        pin_response = pinterest_client.create_pin(
+            access_token=access_token,
+            board_id=board_id,
+            image_url=image.source_url or image.local_path,
+            description=pin_description,
+            title=quote.text[:50]
+        )
+        
+        # Update post record
+        from datetime import datetime
+        post.pin_id = pin_response.get('id')
+        post.board_id = board_id
+        post.status = 'posted'
+        post.posted_time = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'posted',
+            'pin_id': pin_response.get('id'),
+            'pin_url': pin_response.get('url'),
+            'post_id': post.id
+        }), 200
+    
+    except Exception as e:
+        post.status = 'failed'
+        post.error_message = str(e)
+        db.session.commit()
+        return jsonify({'error': f'Failed to post: {str(e)}'}), 500
+
+@app.route('/boards', methods=['GET'])
+def get_boards():
+    """List user's Pinterest boards."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user = User.query.get(user_id)
+        access_token = user.get_access_token()
+        boards = pinterest_client.get_boards(access_token)
+        return jsonify(boards)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch boards: {str(e)}'}), 500
+
+# ==================== ADMIN REVIEW ENDPOINTS ====================
+
+@app.route('/admin/flagged', methods=['GET'])
+def get_flagged_posts():
+    """List flagged posts pending review."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    flagged_quotes = Quote.query.filter_by(user_id=user_id, review_status='pending_review').all()
+    flagged_images = ImageModel.query.filter_by(user_id=user_id, review_status='pending_review').all()
+    
+    return jsonify({
+        'flagged_quotes': [{
+            'id': q.id,
+            'text': q.text,
+            'author': q.author,
+            'source': q.source,
+            'license': q.license
+        } for q in flagged_quotes],
+        'flagged_images': [{
+            'id': i.id,
+            'source_url': i.source_url,
+            'license': i.license
+        } for i in flagged_images]
+    })
+
+@app.route('/admin/quotes/<int:quote_id>/approve', methods=['POST'])
+def approve_quote(quote_id):
+    """Approve a flagged quote."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    quote = Quote.query.filter_by(id=quote_id, user_id=user_id).first()
+    if not quote:
+        return jsonify({'error': 'Quote not found'}), 404
+    
+    quote.review_status = 'approved'
+    db.session.commit()
+    return jsonify({'status': 'approved'})
 
 if __name__ == '__main__':
     with app.app_context():

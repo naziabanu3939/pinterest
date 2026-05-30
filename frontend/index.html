@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pinterest Life Quotes</title>
+    <title>Pinterest Life Quotes with Affiliate Marketing</title>
     <style>
         * {
             margin: 0;
@@ -172,6 +172,11 @@
             background: #e0e0e0;
         }
         
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        
         .validation-message {
             margin-top: 1rem;
             padding: 1rem;
@@ -271,24 +276,37 @@
             color: #856404;
         }
         
-        .spinner {
-            display: none;
-            margin: 1rem 0;
+        .affiliate-list {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
         }
         
-        .spinner.active {
-            display: inline-block;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
+        .affiliate-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .affiliate-info {
+            flex: 1;
+        }
+        
+        .affiliate-info strong {
+            display: block;
+            color: #333;
+        }
+        
+        .affiliate-info small {
+            color: #999;
+            word-break: break-all;
         }
         
         .error {
@@ -310,7 +328,7 @@
 </head>
 <body>
     <div class="navbar">
-        <h1>📌 Life Quotes to Pinterest</h1>
+        <h1>📌 Life Quotes + Affiliate Links</h1>
         <div id="userInfo" style="display:none; color: white; margin-right: 1rem;">
             <span id="userEmail"></span>
         </div>
@@ -322,8 +340,8 @@
         <!-- Login Screen -->
         <div id="loginScreen" class="login-screen">
             <h2>Welcome to Life Quotes Uploader</h2>
-            <p>Create beautiful quote images and share them to Pinterest automatically.</p>
-            <p style="font-size: 0.9rem; color: #999;">We ensure all content respects copyright and licensing.</p>
+            <p>Create beautiful quote images and share them to Pinterest with affiliate links.</p>
+            <p style="font-size: 0.9rem; color: #999;">✓ Copyright-safe • Earn commissions • Copyright-safe • Automatic scheduling</p>
             <button class="login-btn" onclick="login()">Get Started with Pinterest</button>
         </div>
         
@@ -331,13 +349,14 @@
         <div id="dashboard" class="dashboard">
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('create')">Create Post</button>
+                <button class="tab" onclick="switchTab('affiliates')">Affiliate Links</button>
                 <button class="tab" onclick="switchTab('posts')">My Posts</button>
                 <button class="tab" onclick="switchTab('review')">Review Flagged</button>
             </div>
             
             <!-- Create Post Tab -->
             <div id="createTab" class="tab-content active">
-                <h3>Create New Post</h3>
+                <h3>Create New Post with Affiliate Link</h3>
                 <form id="createPostForm" onsubmit="createPost(event)">
                     <div class="form-group">
                         <label for="quote">Quote *</label>
@@ -356,11 +375,18 @@
                     </div>
                     
                     <div class="form-group">
+                        <label for="affiliate">Affiliate Link (optional)</label>
+                        <select id="affiliate">
+                            <option value="">No affiliate link</option>
+                        </select>
+                        <small style="color: #999;">Select an affiliate link to include in pin description</small>
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="board">Pinterest Board</label>
                         <select id="board">
                             <option value="">Select a board...</option>
                         </select>
-                        <small style="color: #999;">Boards will be loaded after you login</small>
                     </div>
                     
                     <div id="validationMessage"></div>
@@ -368,9 +394,41 @@
                     <div id="successMessage"></div>
                     
                     <div class="button-group">
-                        <button type="submit" class="btn-primary">Create Draft</button>
+                        <button type="submit" class="btn-primary">Create Post</button>
                     </div>
                 </form>
+            </div>
+            
+            <!-- Affiliate Links Tab -->
+            <div id="affiliatesTab" class="tab-content">
+                <h3>Manage Affiliate Links</h3>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h4>Add New Affiliate Link</h4>
+                    <form id="addAffiliateForm" onsubmit="addAffiliate(event)">
+                        <div class="form-group">
+                            <label for="affName">Program Name *</label>
+                            <input type="text" id="affName" placeholder="e.g., Amazon Associates" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="affUrl">Affiliate URL *</label>
+                            <input type="url" id="affUrl" placeholder="https://amazon.com?tag=yourcode" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="affCategory">Category (optional)</label>
+                            <input type="text" id="affCategory" placeholder="e.g., books, wellness, lifestyle">
+                        </div>
+                        
+                        <button type="submit" class="btn-primary">Add Affiliate Link</button>
+                    </form>
+                </div>
+                
+                <div>
+                    <h4>Your Affiliate Links</h4>
+                    <div id="affiliatesList" class="affiliate-list"></div>
+                </div>
             </div>
             
             <!-- Posts Tab -->
@@ -389,6 +447,7 @@
     
     <script>
         let currentUser = null;
+        let affiliates = [];
         
         function login() {
             window.location.href = '/auth/login';
@@ -416,6 +475,7 @@
             document.getElementById('logoutBtn').style.display = 'block';
             document.getElementById('userInfo').style.display = 'block';
             loadBoards();
+            loadAffiliates();
             loadPosts();
             loadFlaggedContent();
         }
@@ -441,6 +501,8 @@
             const quote = document.getElementById('quote').value;
             const author = document.getElementById('author').value;
             const imageUrl = document.getElementById('imageUrl').value;
+            const affiliateId = document.getElementById('affiliate').value || null;
+            const boardId = document.getElementById('board').value;
             
             try {
                 const response = await fetch('/posts', {
@@ -449,7 +511,8 @@
                     body: JSON.stringify({
                         quote: quote,
                         author: author || null,
-                        image_url: imageUrl
+                        image_url: imageUrl,
+                        affiliate_id: affiliateId ? parseInt(affiliateId) : null
                     })
                 });
                 
@@ -462,7 +525,10 @@
                 }
                 
                 if (response.ok) {
-                    document.getElementById('successMessage').textContent = 'Post created! Check the review tab if flagged.';
+                    document.getElementById('successMessage').textContent = '✓ Post created! Check the review tab if flagged.';
+                    if (affiliateId) {
+                        document.getElementById('successMessage').textContent += ' 💰 Affiliate link included!';
+                    }
                     document.getElementById('createPostForm').reset();
                     setTimeout(() => loadPosts(), 1000);
                 } else {
@@ -470,6 +536,85 @@
                 }
             } catch (error) {
                 document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function addAffiliate(e) {
+            e.preventDefault();
+            const name = document.getElementById('affName').value;
+            const url = document.getElementById('affUrl').value;
+            const category = document.getElementById('affCategory').value;
+            
+            try {
+                const response = await fetch('/affiliates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        url: url,
+                        category: category || null
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('addAffiliateForm').reset();
+                    loadAffiliates();
+                    alert('Affiliate link added! ✓');
+                } else {
+                    const data = await response.json();
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function loadAffiliates() {
+            try {
+                const response = await fetch('/affiliates');
+                if (response.ok) {
+                    affiliates = await response.json();
+                    const select = document.getElementById('affiliate');
+                    select.innerHTML = '<option value="">No affiliate link</option>';
+                    affiliates.forEach(aff => {
+                        const option = document.createElement('option');
+                        option.value = aff.id;
+                        option.textContent = `${aff.name}${aff.category ? ` (${aff.category})` : ''}`;
+                        select.appendChild(option);
+                    });
+                    
+                    // Update affiliate list in affiliates tab
+                    const list = document.getElementById('affiliatesList');
+                    if (affiliates.length === 0) {
+                        list.innerHTML = '<p>No affiliate links yet. Add one above!</p>';
+                    } else {
+                        list.innerHTML = affiliates.map(aff => `
+                            <div class="affiliate-item">
+                                <div class="affiliate-info">
+                                    <strong>${aff.name}</strong>
+                                    <small>${aff.url}</small>
+                                    ${aff.category ? `<small style="display: block; margin-top: 0.25rem;">📁 ${aff.category}</small>` : ''}
+                                </div>
+                                <button class="btn-secondary btn-small" onclick="deleteAffiliate(${aff.id})">Delete</button>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load affiliates:', error);
+            }
+        }
+        
+        async function deleteAffiliate(id) {
+            if (!confirm('Delete this affiliate link?')) return;
+            try {
+                const response = await fetch(`/affiliates/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadAffiliates();
+                    alert('Affiliate link deleted! ✓');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
             }
         }
         

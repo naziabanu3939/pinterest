@@ -70,12 +70,23 @@ class Image(db.Model):
     review_status = db.Column(db.String(20), default='pending_review')
     created_at = db.Column(db.DateTime, default=db.func.now())
 
+class Affiliate(db.Model):
+    __tablename__ = 'affiliates'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)  # e.g., "Amazon Associates", "ShareASale"
+    url = db.Column(db.String(500), nullable=False)  # Affiliate link
+    category = db.Column(db.String(100), nullable=True)  # e.g., "books", "wellness", "lifestyle"
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
 class Post(db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id'), nullable=False)
     image_id = db.Column(db.Integer, db.ForeignKey('images.id'), nullable=False)
+    affiliate_id = db.Column(db.Integer, db.ForeignKey('affiliates.id'), nullable=True)  # Optional affiliate link
     pin_id = db.Column(db.String(255), nullable=True)  # Pinterest Pin ID after posting
     board_id = db.Column(db.String(255), nullable=True)  # Pinterest Board ID
     status = db.Column(db.String(20), default='draft')  # draft, scheduled, posted, failed

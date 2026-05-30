@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinterest Life Quotes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .navbar {
+            background: rgba(0,0,0,0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar h1 {
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .navbar button {
+            background: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .container {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .login-screen, .dashboard {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .login-screen {
+            text-align: center;
+            max-width: 500px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 400px;
+        }
+        
+        .login-screen h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .login-screen p {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .login-btn {
+            background: #e60023;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .login-btn:hover {
+            background: #ad081b;
+        }
+        
+        .dashboard {
+            display: none;
+        }
+        
+        .dashboard.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="text"],
+        input[type="url"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .validation-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .validation-approved {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .validation-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .validation-rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .tab {
+            padding: 1rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .post-card {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 1rem;
+        }
+        
+        .post-card h4 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .post-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .status-draft {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .status-posted {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-scheduled {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .spinner {
+            display: none;
+            margin: 1rem 0;
+        }
+        
+        .spinner.active {
+            display: inline-block;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #721c24;
+            background: #f8d7da;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>📌 Life Quotes to Pinterest</h1>
+        <div id="userInfo" style="display:none; color: white; margin-right: 1rem;">
+            <span id="userEmail"></span>
+        </div>
+        <button id="logoutBtn" onclick="logout()" style="display:none;">Logout</button>
+        <button id="loginBtn" class="login-btn" onclick="login()">Login with Pinterest</button>
+    </div>
+    
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="login-screen">
+            <h2>Welcome to Life Quotes Uploader</h2>
+            <p>Create beautiful quote images and share them to Pinterest automatically.</p>
+            <p style="font-size: 0.9rem; color: #999;">We ensure all content respects copyright and licensing.</p>
+            <button class="login-btn" onclick="login()">Get Started with Pinterest</button>
+        </div>
+        
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('create')">Create Post</button>
+                <button class="tab" onclick="switchTab('posts')">My Posts</button>
+                <button class="tab" onclick="switchTab('review')">Review Flagged</button>
+            </div>
+            
+            <!-- Create Post Tab -->
+            <div id="createTab" class="tab-content active">
+                <h3>Create New Post</h3>
+                <form id="createPostForm" onsubmit="createPost(event)">
+                    <div class="form-group">
+                        <label for="quote">Quote *</label>
+                        <textarea id="quote" placeholder="Enter your life quote..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="author">Author (optional)</label>
+                        <input type="text" id="author" placeholder="e.g., Albert Einstein">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="imageUrl">Image URL *</label>
+                        <input type="url" id="imageUrl" placeholder="https://unsplash.com/... (use CC0 sources)" required>
+                        <small style="color: #999;">✓ Approved: Unsplash, Pexels, Pixabay</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="board">Pinterest Board</label>
+                        <select id="board">
+                            <option value="">Select a board...</option>
+                        </select>
+                        <small style="color: #999;">Boards will be loaded after you login</small>
+                    </div>
+                    
+                    <div id="validationMessage"></div>
+                    <div id="errorMessage"></div>
+                    <div id="successMessage"></div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Create Draft</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Posts Tab -->
+            <div id="postsTab" class="tab-content">
+                <h3>My Posts</h3>
+                <div id="postsList" class="posts-grid"></div>
+            </div>
+            
+            <!-- Review Tab -->
+            <div id="reviewTab" class="tab-content">
+                <h3>Flagged Content</h3>
+                <div id="flaggedList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentUser = null;
+        
+        function login() {
+            window.location.href = '/auth/login';
+        }
+        
+        function logout() {
+            fetch('/auth/logout', { method: 'POST' }).then(() => {
+                currentUser = null;
+                showLoginScreen();
+            });
+        }
+        
+        function showLoginScreen() {
+            document.getElementById('loginScreen').style.display = 'block';
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('loginBtn').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'none';
+        }
+        
+        function showDashboard() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboard').classList.add('active');
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'block';
+            loadBoards();
+            loadPosts();
+            loadFlaggedContent();
+        }
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch('/auth/user');
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUser = user;
+                    document.getElementById('userEmail').textContent = user.email;
+                    showDashboard();
+                } else {
+                    showLoginScreen();
+                }
+            } catch (error) {
+                showLoginScreen();
+            }
+        }
+        
+        async function createPost(e) {
+            e.preventDefault();
+            const quote = document.getElementById('quote').value;
+            const author = document.getElementById('author').value;
+            const imageUrl = document.getElementById('imageUrl').value;
+            
+            try {
+                const response = await fetch('/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quote: quote,
+                        author: author || null,
+                        image_url: imageUrl
+                    })
+                });
+                
+                const data = await response.json();
+                const msg = document.getElementById('validationMessage');
+                
+                if (data.validation) {
+                    msg.className = `validation-message validation-${data.validation.overall_status}`;
+                    msg.innerHTML = data.validation.messages.join('<br>');
+                }
+                
+                if (response.ok) {
+                    document.getElementById('successMessage').textContent = 'Post created! Check the review tab if flagged.';
+                    document.getElementById('createPostForm').reset();
+                    setTimeout(() => loadPosts(), 1000);
+                } else {
+                    document.getElementById('errorMessage').textContent = data.error;
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function loadBoards() {
+            try {
+                const response = await fetch('/boards');
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('board');
+                    select.innerHTML = '<option value="">Select a board...</option>';
+                    (data.items || []).forEach(board => {
+                        const option = document.createElement('option');
+                        option.value = board.id;
+                        option.textContent = board.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load boards:', error);
+            }
+        }
+        
+        async function loadPosts() {
+            try {
+                const response = await fetch('/posts');
+                if (response.ok) {
+                    const posts = await response.json();
+                    const list = document.getElementById('postsList');
+                    list.innerHTML = posts.map(p => `
+                        <div class="post-card">
+                            <h4>Post #${p.id}</h4>
+                            <span class="post-status status-${p.status}">${p.status}</span>
+                            <p style="color: #666; font-size: 0.9rem;">${new Date(p.created_at).toLocaleDateString()}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load posts:', error);
+            }
+        }
+        
+        async function loadFlaggedContent() {
+            try {
+                const response = await fetch('/admin/flagged');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('flaggedList');
+                    if (data.flagged_quotes.length === 0 && data.flagged_images.length === 0) {
+                        list.innerHTML = '<p>No flagged content. All clear! ✓</p>';
+                    } else {
+                        list.innerHTML = '<p>Review these items before posting:</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load flagged content:', error);
+            }
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+        
+        // Check auth on page load
+        checkAuth();
+    </script>
+</body>
+</html>

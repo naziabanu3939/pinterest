@@ -9,9 +9,32 @@ Automatically create and post aesthetic life quote images to Pinterest with affi
 - ⏰ Schedule posts for later
 - 🎨 Auto-compose beautiful quote images
 - 👤 OAuth2 authentication with Pinterest
-- ☁️ Deploy to Heroku in 5 minutes
+- ☁️ Deploy to Heroku with one click (free!)
 
-## Quick Start (Local)
+---
+
+## ☁️ Deploy to Heroku (One Click!)
+
+**No local setup required!**
+
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/naziabanu3939/pinterest)
+
+**Steps:**
+1. Click the button above
+2. Sign in to Heroku (or create account)
+3. Enter app name
+4. Fill in environment variables:
+   - `PINTEREST_CLIENT_ID` — Get from https://developers.pinterest.com/apps
+   - `PINTEREST_CLIENT_SECRET` — Get from https://developers.pinterest.com/apps
+   - `SECRET_KEY` — Enter any random text
+   - `ENCRYPTION_KEY` — Run this locally: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+5. Click **Deploy**
+6. Wait 2-3 minutes
+7. Click **View** → Your app is live! 🎉
+
+---
+
+## 💻 Local Development
 
 ```bash
 git clone https://github.com/naziabanu3939/pinterest.git
@@ -43,18 +66,7 @@ python app.py
 
 Then open: http://localhost:5000
 
-## Deploy to Heroku (Free!)
-
-See **docs/HEROKU_DEPLOY.md** for step-by-step instructions.
-
-**5-minute deployment:**
-```bash
-heroku login
-heroku create your-app-name
-heroku config:set ENCRYPTION_KEY="your_key" ...  # Set env vars
-git push heroku main
-heroku open
-```
+---
 
 ## How to Use
 
@@ -97,7 +109,8 @@ heroku open
 ## Documentation
 
 - **DESIGN.md** — Architecture & system design
-- **docs/HEROKU_DEPLOY.md** — Deploy to Heroku
+- **docs/DEPLOYMENT_CHECKLIST.md** — Manual deployment guide
+- **docs/HEROKU_DEPLOY.md** — Heroku setup details
 - **docs/DEPLOYMENT.md** — Other deployment options
 - **docs/PINTEREST_SETUP.md** — Register Pinterest app
 
@@ -107,10 +120,10 @@ heroku open
 FLASK_ENV=production
 SECRET_KEY=random_key_here
 ENCRYPTION_KEY=fernet_key_from_cryptography
-DATABASE_URL=postgresql://...  # Heroku sets this
+DATABASE_URL=postgresql://...  # Auto-set by Heroku
 PINTEREST_CLIENT_ID=your_client_id
 PINTEREST_CLIENT_SECRET=your_client_secret
-PINTEREST_REDIRECT_URI=https://your-app.herokuapp.com/auth/callback
+PINTEREST_REDIRECT_URI=https://your-app.herokuapp.com/auth/callback  # Auto-filled
 ```
 
 ## API Endpoints

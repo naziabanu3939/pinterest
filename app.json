@@ -1,0 +1,61 @@
+{
+  "name": "Pinterest Life Quotes with Affiliate Marketing",
+  "description": "Post life quotes with affiliate links to Pinterest automatically",
+  "repository": "https://github.com/naziabanu3939/pinterest",
+  "keywords": ["pinterest", "quotes", "affiliate", "marketing", "flask"],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": {
+      "description": "Flask environment",
+      "value": "production"
+    },
+    "SECRET_KEY": {
+      "description": "Flask secret key (generate a random one)",
+      "value": "",
+      "required": true
+    },
+    "ENCRYPTION_KEY": {
+      "description": "Encryption key for storing tokens. Run: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"",
+      "value": "",
+      "required": true
+    },
+    "PINTEREST_CLIENT_ID": {
+      "description": "Get from https://developers.pinterest.com/apps",
+      "value": "",
+      "required": true
+    },
+    "PINTEREST_CLIENT_SECRET": {
+      "description": "Get from https://developers.pinterest.com/apps",
+      "value": "",
+      "required": true
+    },
+    "PINTEREST_REDIRECT_URI": {
+      "description": "Will be auto-filled as: https://YOUR-APP-NAME.herokuapp.com/auth/callback",
+      "value": "",
+      "required": false
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:hobby-dev"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "cd backend && python -c \"from app import app, db; app.app_context().push(); db.create_all()\""
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "success_url": "/auth/user"
+}
